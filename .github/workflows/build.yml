@@ -50,6 +50,11 @@ jobs:
                   android:label="noled"
                   android:name="${applicationName}"
                   android:icon="@mipmap/ic_launcher">
+                  
+                  <meta-data
+                      android:name="com.google.firebase.messaging.default_notification_channel_id"
+                      android:value="com.noled.app/alerts" />
+
                   <activity
                       android:name=".MainActivity"
                       android:exported="true"
@@ -198,8 +203,10 @@ jobs:
           }
           EOF
 
-      - name: Add Permission Handler Dependency
-        run: flutter pub add permission_handler
+      - name: Add System Permissions Dependencies
+        run: |
+          flutter pub add permission_handler
+          flutter pub add flutter_local_notifications
 
       - name: Install Dependencies
         run: flutter pub get
