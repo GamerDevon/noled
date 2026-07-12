@@ -10,7 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences: ^2.2.0
-  installed_apps: ^1.2.1 # Modern app tracker replacing the broken device_apps
+  installed_apps: ^1.2.1
   battery_plus: ^6.0.0
 
 flutter:
