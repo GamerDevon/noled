@@ -29,6 +29,12 @@ jobs:
         run: |
           sed -i 's/<activity/<activity android:showWhenLocked="true" android:turnScreenOn="true" android:keepScreenOn="true"/g' android/app/src/main/AndroidManifest.xml
 
+      - name: Inject Packages into Overwritten Pubspec
+        run: |
+          flutter pub add shared_preferences
+          flutter pub add device_apps
+          flutter pub add battery_plus
+
       - name: Install Dependencies
         run: flutter pub get
 
