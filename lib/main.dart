@@ -21,6 +21,7 @@ class NoLedApp extends StatefulWidget {
 class _NoLedAppState extends State<NoLedApp> {
   static const platform = MethodChannel('com.noled.app/overlay');
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  final ValueNotifier<String?> backgroundTriggerNotifier = ValueNotifier<String?>(null);
 
   @override
   void initState() {
@@ -28,34 +29,11 @@ class _NoLedAppState extends State<NoLedApp> {
     platform.setMethodCallHandler((call) async {
       if (call.method == "showNotificationOverlay") {
         final String? packageName = call.arguments as String?;
-        _triggerOverlay(packageName);
+        if (packageName != null) {
+          backgroundTriggerNotifier.value = packageName;
+        }
       }
     });
-  }
-
-  Future<void> _triggerOverlay(String? packageName) async {
-    Uint8List? iconBytes;
-    if (packageName != null) {
-      try {
-        // FIXED: Added 'true' as the second parameter to fetch the app icon profile
-        AppInfo? app = await InstalledApps.getAppInfo(packageName, true);
-        if (app != null) {
-          iconBytes = app.icon;
-        }
-      } catch (_) {}
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    final savedBatteryColorValue = prefs.getInt('battery_color_pref') ?? Colors.green.value;
-
-    navigatorKey.currentState?.push(
-      MaterialPageRoute(
-        builder: (context) => NoLedOverlay(
-          appIcon: iconBytes,
-          bColor: Color(savedBatteryColorValue),
-        ),
-      ),
-    );
   }
 
   @override
@@ -68,12 +46,15 @@ class _NoLedAppState extends State<NoLedApp> {
         scaffoldBackgroundColor: Colors.black,
         appBarTheme: const AppBarTheme(backgroundColor: Colors.black87),
       ),
-      home: AppSettingsScreen(),
+      home: AppSettingsScreen(triggerNotifier: backgroundTriggerNotifier),
     );
   }
 }
 
 class AppSettingsScreen extends StatefulWidget {
+  final ValueNotifier<String?> triggerNotifier;
+  const AppSettingsScreen({required this.triggerNotifier});
+
   @override
   _AppSettingsScreenState createState() => _AppSettingsScreenState();
 }
@@ -85,27 +66,56 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   bool isLoading = true;
 
   final List<Color> colorPresets = [
-    Colors.red,
-    Colors.green,
-    Colors.blue,
-    Colors.yellow,
-    Colors.purple,
-    Colors.cyan,
+    Colors.red, Colors.green, Colors.blue, Colors.yellow, Colors.purple, Colors.cyan,
   ];
 
   @override
   void initState() {
     super.initState();
     _loadAppsAndSettings();
+    widget.triggerNotifier.addListener(_handleBackgroundTrigger);
+  }
+
+  @override
+  void dispose() {
+    widget.triggerNotifier.removeListener(_handleBackgroundTrigger);
+    super.dispose();
+  }
+
+  void _handleBackgroundTrigger() async {
+    final package = widget.triggerNotifier.value;
+    if (package == null) return;
+    widget.triggerNotifier.value = null; // Clear trigger
+
+    Uint8List? matchedIcon;
+    // Safely look up the icon from the already fetched in-memory list
+    for (var app in installedApps) {
+      if (app.packageName == package) {
+        matchedIcon = app.icon;
+        break;
+      }
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final savedBatteryColorValue = prefs.getInt('battery_color_pref') ?? Colors.green.value;
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => NoLedOverlay(
+            appIcon: matchedIcon,
+            bColor: Color(savedBatteryColorValue),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _loadAppsAndSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    
     List<AppInfo> apps = await InstalledApps.getInstalledApps(true, true);
-
     apps.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-
     final savedBatteryColorValue = prefs.getInt('battery_color_pref');
     
     setState(() {
