@@ -34,6 +34,8 @@ jobs:
               <uses-permission android:name="android:permission.WAKE_LOCK"/>
               <uses-permission android:name="android:permission.SYSTEM_ALERT_WINDOW"/>
               <uses-permission android:name="android:permission.BIND_NOTIFICATION_LISTENER_SERVICE"/>
+              <uses-permission android:name="android:permission.POST_NOTIFICATIONS"/>
+              <uses-permission android:name="android:permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
               
               <application
                   android:label="noled"
@@ -176,6 +178,9 @@ jobs:
               }
           }
           EOF
+
+      - name: Add Permission Handler Dependency
+        run: flutter pub add permission_handler
 
       - name: Install Dependencies
         run: flutter pub get
