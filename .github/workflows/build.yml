@@ -68,11 +68,12 @@ jobs:
                       )
                       wakeLock.acquire(3000)
 
-                      val launchIntent = packageManager.getLaunchIntentForPackage(context.packageName)
+                      // FIXED: Using implicit service context properties directly
+                      val launchIntent = packageManager.getLaunchIntentForPackage(this.packageName)
                       launchIntent?.apply {
                           addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
                           putExtra("triggered_package", packageName)
-                          context.startActivity(this)
+                          startActivity(this)
                       }
                       
                       MainActivity.sendNotificationSignal(packageName)
