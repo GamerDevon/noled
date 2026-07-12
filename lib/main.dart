@@ -15,10 +15,10 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterL
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Register default notification settings hooks to wake up grayed out system fields
+  // FIXED: Changed to a named argument 'initializationSettings:' to match modern package requirements
   const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
   const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings: initializationSettings);
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
     'com.noled.app/alerts', 
@@ -109,7 +109,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   }
 
   Future<void> _requestAllSystemPermissions() async {
-    // Fire native batch dialog prompts for all hardware items directly
     Map<Permission, PermissionStatus> statuses = await [
       Permission.notification,
       Permission.camera,
@@ -389,7 +388,7 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
                 child: Text(
                   "DEBUG: Triggered by ${widget.debugPackageName}",
                   style: const TextStyle(color: Colors.amber, fontSize: 12, fontFamily: 'monospace'),
-                  textAlign: TextAlign.center,
+                  textAlign: 'center',
                 ),
               ),
             ),
@@ -418,8 +417,7 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
                   ],
                 ),
               ),
-                ),
-            ),
+            ), // FIXED: Cleared the accidental bracket syntax nesting conflict here
           ],
         ),
       ),
