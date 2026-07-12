@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:battery_plus/battery_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,9 +65,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   final Set<String> enabledApps = {}; 
   Color batteryColor = Colors.green; 
   bool isLoading = true;
-  bool isOverlayPermissionGranted = true;
+  
+  // Stavy oprávnění
+  bool isOverlayGranted = true;
+  bool isNotificationGranted = true;
+  bool isBatteryOptIgnored = true;
 
-  // Channel to invoke native window overlay checks
   static const MethodChannel _permissionChannel = MethodChannel('com.noled.app/overlay');
 
   final List<Color> colorPresets = [
@@ -77,7 +81,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   void initState() {
     super.initState();
     _loadAppsAndSettings();
-    _checkOverlayPermission();
+    _checkAllPermissions();
     widget.triggerNotifier.addListener(_handleBackgroundTrigger);
   }
 
@@ -87,23 +91,42 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     super.dispose();
   }
 
-  // Requests status checks from Android to see if it can draw popups
-  Future<void> _checkOverlayPermission() async {
+  // Kontrola všech oprávnění najednou
+  Future<void> _checkAllPermissions() async {
+    final notificationStatus = await Permission.notification.status;
+    final batteryStatus = await Permission.ignoreBatteryOptimizations.status;
+    
+    bool overlayCheck = false;
     try {
-      final bool systemAlertCheck = await _permissionChannel.invokeMethod('checkOverlayPermission') ?? false;
-      setState(() {
-        isOverlayPermissionGranted = systemAlertCheck;
-      });
+      overlayCheck = await _permissionChannel.invokeMethod('checkOverlayPermission') ?? false;
     } catch (_) {}
+
+    setState(() {
+      isNotificationGranted = notificationStatus.isGranted;
+      isBatteryOptIgnored = batteryStatus.isGranted;
+      isOverlayGranted = overlayCheck;
+    });
   }
 
-  // Launches the hidden native settings screen directly
+  // Vyžádání standardních oprávnění (Oprávnění aplikace)
+  Future<void> _requestStandardPermissions() async {
+    await Permission.notification.request();
+    await Permission.ignoreBatteryOptimizations.request();
+    _checkAllPermissions();
+  }
+
+  // Otevření nativního "Kreslení přes aplikace / Vyskakovací okna"
   Future<void> _openOverlaySettings() async {
     try {
       await _permissionChannel.invokeMethod('requestOverlayPermission');
-      // Re-evaluate state when user comes back
-      Future.delayed(const Duration(seconds: 2), () => _checkOverlayPermission());
     } catch (_) {}
+    Future.delayed(const Duration(seconds: 2), () => _checkAllPermissions());
+  }
+
+  // Otevření hlubokého nastavení (App Info) pro Xiaomi "Ostatní oprávnění"
+  Future<void> _openDeepAppSettings() async {
+    await openAppSettings();
+    Future.delayed(const Duration(seconds: 2), () => _checkAllPermissions());
   }
 
   void _handleBackgroundTrigger() async {
@@ -179,36 +202,76 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    bool everythingGranted = isOverlayGranted && isNotificationGranted && isBatteryOptIgnored;
+
     return Scaffold(
       appBar: AppBar(title: const Text("NoLED")),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               children: [
-                // Warning notification banner if Xiaomi blocks background popups
-                if (!isOverlayPermissionGranted)
-                  Card(
-                    color: Colors.amber.shade900.withOpacity(0.8),
-                    margin: const EdgeInsets.all(10),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          const Text(
-                            "Oprávnění chybí: Povolte 'Zobrazit vyskakovací okna / kreslení přes aplikace', aby se obrazovka zobrazovala na pozadí.",
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center,
+                // KOMPLETNÍ PANEL SPRÁVY OPRÁVNĚNÍ
+                Card(
+                  color: everythingGranted ? Colors.green.shade900.withOpacity(0.4) : Colors.deepOrange.shade900.withOpacity(0.6),
+                  margin: const EdgeInsets.all(10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              everythingGranted ? Icons.check_circle : Icons.warning,
+                              color: everythingGranted ? Colors.green : Colors.amber,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              everythingGranted ? "Všechna oprávnění jsou udělena!" : "Vyžadováno nastavení oprávnění",
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        // Stav 1: Oprávnění aplikace (Upozornění a Baterie)
+                        _buildPermissionStatusRow("Oprávnění aplikace (Notifikace & Baterie)", isNotificationGranted && isBatteryOptIgnored),
+                        // Stav 2: Vyskakovací okna / Kreslení přes aplikace
+                        _buildPermissionStatusRow("Zobrazit přes ostatní aplikace (Overlay)", isOverlayGranted),
+                        
+                        const SizedBox(height: 14),
+                        if (!everythingGranted) ...[
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.black87),
+                            icon: const Icon(Icons.security, size: 18),
+                            label: const Text("1. Povolit Oprávnění aplikace"),
+                            onPressed: _requestStandardPermissions,
                           ),
-                          const SizedBox(height: 10),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.black87),
+                            icon: const Icon(Icons.layers, size: 18),
+                            label: const Text("2. Povolit Vyskakovací okna (Overlay)"),
                             onPressed: _openOverlaySettings,
-                            child: const Text("Otevřít nastavení oprávnění", style: TextStyle(color: Colors.white)),
-                          )
-                        ],
-                      ),
+                          ),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade900),
+                            icon: const Icon(Icons.settings_applications, size: 18),
+                            label: const Text("3. Otevřít detaily (pro 'Ostatní oprávnění')"),
+                            onPressed: _openDeepAppSettings,
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              "* Na telefonech Xiaomi/Redmi klepněte na tlačítko 3, zvolte 'Ostatní oprávnění' a ručně povolte 'Zobrazit vyskakovací okna při běhu na pozadí'.",
+                              style: TextStyle(fontSize: 11, color: Colors.white70, italic: true),
+                            ),
+                          ),
+                        ]
+                      ],
                     ),
                   ),
+                ),
+                
                 Card(
                   color: Colors.grey.shade900,
                   margin: const EdgeInsets.all(10),
@@ -273,6 +336,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                 }).toList(),
               ],
             ),
+    );
+  }
+
+  Widget _buildPermissionStatusRow(String label, bool isGranted) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        children: [
+          Icon(isGranted ? Icons.check : Icons.close, color: isGranted ? Colors.green : Colors.red, size: 16),
+          const SizedBox(width: 6),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13, color: Colors.white90))),
+        ],
+      ),
     );
   }
 }
