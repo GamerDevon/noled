@@ -8,9 +8,31 @@ import 'package:installed_apps/installed_apps.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-void main() {
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Register default notification settings hooks to wake up grayed out system fields
+  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'com.noled.app/alerts', 
+    'NoLED Core Alerts',
+    description: 'Bypasses system restrictions to initialize overlay parameters.',
+    importance: Importance.max,
+    playSound: false,
+    enableVibration: false,
+  );
+
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+
   runApp(NoLedApp());
 }
 
@@ -86,8 +108,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     super.dispose();
   }
 
-  // Triggers native popups for all standard system and hardware access items at once
   Future<void> _requestAllSystemPermissions() async {
+    // Fire native batch dialog prompts for all hardware items directly
     Map<Permission, PermissionStatus> statuses = await [
       Permission.notification,
       Permission.camera,
@@ -396,6 +418,7 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
                   ],
                 ),
               ),
+                ),
             ),
           ],
         ),
