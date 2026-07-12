@@ -32,7 +32,7 @@ jobs:
       - name: Inject Packages into Overwritten Pubspec
         run: |
           flutter pub add shared_preferences
-          flutter pub add device_apps
+          flutter pub add installed_apps
           flutter pub add battery_plus
 
       - name: Install Dependencies
