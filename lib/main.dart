@@ -25,7 +25,6 @@ class _NoLedAppState extends State<NoLedApp> {
   @override
   void initState() {
     super.initState();
-    // Native service triggers this when a matching notification arrives
     platform.setMethodCallHandler((call) async {
       if (call.method == "showNotificationOverlay") {
         final String? packageName = call.arguments as String?;
@@ -38,7 +37,9 @@ class _NoLedAppState extends State<NoLedApp> {
     Uint8List? iconBytes;
     if (packageName != null) {
       try {
-        iconBytes = await InstalledApps.getAppIcon(packageName);
+        // Fetching the individual app package details with its icon stream enabled
+        AppInfo app = await InstalledApps.getAppInfo(packageName);
+        iconBytes = app.icon;
       } catch (_) {}
     }
 
@@ -99,10 +100,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   Future<void> _loadAppsAndSettings() async {
     final prefs = await SharedPreferences.getInstance();
     
-    List<AppInfo> apps = await InstalledApps.getInstalledApps(
-      excludeSystemApps: true,
-      withIcon: true,
-    );
+    // In installed_apps 1.5.0+, parameters are positional: 
+    // getInstalledApps(bool excludeSystemApps, bool withIcon, String packageNamePrefix)
+    List<AppInfo> apps = await InstalledApps.getInstalledApps(true, true);
 
     apps.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
@@ -202,7 +202,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                         onChanged: (bool value) {
                           _toggleApp(package, value);
                           if (value) {
-                            // Allows testing the overlay layout immediately when switched on
                             Navigator.push(
                               context,
                               MaterialPageRoute(
