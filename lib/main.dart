@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:battery_plus/battery_plus.dart';
 
-void main() => runApp(NoLedApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(NoLedApp());
+}
 
 class NoLedApp extends StatelessWidget {
   @override
@@ -52,7 +57,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   Future<void> _loadAppsAndSettings() async {
     final prefs = await SharedPreferences.getInstance();
     
-    // Grabs active user-installed apps with icons loaded safely
     List<AppInfo> apps = await InstalledApps.getInstalledApps(
       excludeSystemApps: true,
       withIcon: true,
@@ -175,7 +179,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
 }
 
 class NoLedOverlay extends StatefulWidget {
-  final dynamic appIcon; 
+  final Uint8List? appIcon; 
   final Color bColor;
   const NoLedOverlay({required this.appIcon, required this.bColor});
 
@@ -197,6 +201,7 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _checkBatteryStatus();
 
     _moveTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
@@ -225,8 +230,8 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
 
-    final double maxW = screenWidth - 100;
-    final double maxH = screenHeight - 180;
+    final double maxW = screenWidth > 100 ? screenWidth - 100 : 100;
+    final double maxH = screenHeight > 180 ? screenHeight - 180 : 180;
 
     setState(() {
       posX = _random.nextDouble() * maxW;
@@ -235,6 +240,7 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
   }
 
   void _exitOverlay() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     if (mounted) Navigator.pop(context);
   }
 
@@ -262,7 +268,7 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     widget.appIcon != null 
-                        ? Image.memory(widget.appIcon, width: 55, height: 55)
+                        ? Image.memory(widget.appIcon!, width: 55, height: 55)
                         : const Icon(Icons.android, size: 55, color: Colors.cyan),
                     if (isCharging && batteryPercentage.isNotEmpty) ...[
                       const SizedBox(height: 8),
