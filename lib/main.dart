@@ -37,7 +37,8 @@ class _NoLedAppState extends State<NoLedApp> {
     Uint8List? iconBytes;
     if (packageName != null) {
       try {
-        AppInfo? app = await InstalledApps.getAppInfo(packageName);
+        // FIXED: Added 'true' as the second parameter to fetch the app icon profile
+        AppInfo? app = await InstalledApps.getAppInfo(packageName, true);
         if (app != null) {
           iconBytes = app.icon;
         }
