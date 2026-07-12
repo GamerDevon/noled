@@ -37,9 +37,10 @@ class _NoLedAppState extends State<NoLedApp> {
     Uint8List? iconBytes;
     if (packageName != null) {
       try {
-        // Fetching the individual app package details with its icon stream enabled
-        AppInfo app = await InstalledApps.getAppInfo(packageName);
-        iconBytes = app.icon;
+        AppInfo? app = await InstalledApps.getAppInfo(packageName);
+        if (app != null) {
+          iconBytes = app.icon;
+        }
       } catch (_) {}
     }
 
@@ -100,8 +101,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   Future<void> _loadAppsAndSettings() async {
     final prefs = await SharedPreferences.getInstance();
     
-    // In installed_apps 1.5.0+, parameters are positional: 
-    // getInstalledApps(bool excludeSystemApps, bool withIcon, String packageNamePrefix)
     List<AppInfo> apps = await InstalledApps.getInstalledApps(true, true);
 
     apps.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
