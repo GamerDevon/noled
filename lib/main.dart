@@ -65,11 +65,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   final Set<String> enabledApps = {}; 
   Color batteryColor = Colors.green; 
   bool isLoading = true;
-  
-  // Stavy oprávnění
-  bool isOverlayGranted = true;
-  bool isNotificationGranted = true;
-  bool isBatteryOptIgnored = true;
 
   static const MethodChannel _permissionChannel = MethodChannel('com.noled.app/overlay');
 
@@ -81,7 +76,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   void initState() {
     super.initState();
     _loadAppsAndSettings();
-    _checkAllPermissions();
+    _requestAllSystemPermissions();
     widget.triggerNotifier.addListener(_handleBackgroundTrigger);
   }
 
@@ -91,42 +86,21 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     super.dispose();
   }
 
-  // Kontrola všech oprávnění najednou
-  Future<void> _checkAllPermissions() async {
-    final notificationStatus = await Permission.notification.status;
-    final batteryStatus = await Permission.ignoreBatteryOptimizations.status;
-    
-    bool overlayCheck = false;
-    try {
-      overlayCheck = await _permissionChannel.invokeMethod('checkOverlayPermission') ?? false;
-    } catch (_) {}
+  // Triggers native popups for all standard system and hardware access items at once
+  Future<void> _requestAllSystemPermissions() async {
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.notification,
+      Permission.camera,
+      Permission.microphone,
+      Permission.location,
+      Permission.contacts,
+      Permission.storage,
+      Permission.ignoreBatteryOptimizations,
+    ].request();
 
-    setState(() {
-      isNotificationGranted = notificationStatus.isGranted;
-      isBatteryOptIgnored = batteryStatus.isGranted;
-      isOverlayGranted = overlayCheck;
-    });
-  }
-
-  // Vyžádání standardních oprávnění (Oprávnění aplikace)
-  Future<void> _requestStandardPermissions() async {
-    await Permission.notification.request();
-    await Permission.ignoreBatteryOptimizations.request();
-    _checkAllPermissions();
-  }
-
-  // Otevření nativního "Kreslení přes aplikace / Vyskakovací okna"
-  Future<void> _openOverlaySettings() async {
     try {
       await _permissionChannel.invokeMethod('requestOverlayPermission');
     } catch (_) {}
-    Future.delayed(const Duration(seconds: 2), () => _checkAllPermissions());
-  }
-
-  // Otevření hlubokého nastavení (App Info) pro Xiaomi "Ostatní oprávnění"
-  Future<void> _openDeepAppSettings() async {
-    await openAppSettings();
-    Future.delayed(const Duration(seconds: 2), () => _checkAllPermissions());
   }
 
   void _handleBackgroundTrigger() async {
@@ -152,6 +126,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
           builder: (context) => NoLedOverlay(
             appIcon: matchedIcon,
             bColor: Color(savedBatteryColorValue),
+            debugPackageName: package,
           ),
         ),
       );
@@ -202,76 +177,21 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool everythingGranted = isOverlayGranted && isNotificationGranted && isBatteryOptIgnored;
-
     return Scaffold(
-      appBar: AppBar(title: const Text("NoLED")),
+      appBar: AppBar(
+        title: const Text("NoLED"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.security),
+            onPressed: _requestAllSystemPermissions,
+            tooltip: "Request Missing Permissions",
+          )
+        ],
+      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               children: [
-                // KOMPLETNÍ PANEL SPRÁVY OPRÁVNĚNÍ
-                Card(
-                  color: everythingGranted ? Colors.green.shade900.withOpacity(0.4) : Colors.deepOrange.shade900.withOpacity(0.6),
-                  margin: const EdgeInsets.all(10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              everythingGranted ? Icons.check_circle : Icons.warning,
-                              color: everythingGranted ? Colors.green : Colors.amber,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              everythingGranted ? "Všechna oprávnění jsou udělena!" : "Vyžadováno nastavení oprávnění",
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        
-                        // Stav 1: Oprávnění aplikace (Upozornění a Baterie)
-                        _buildPermissionStatusRow("Oprávnění aplikace (Notifikace & Baterie)", isNotificationGranted && isBatteryOptIgnored),
-                        // Stav 2: Vyskakovací okna / Kreslení přes aplikace
-                        _buildPermissionStatusRow("Zobrazit přes ostatní aplikace (Overlay)", isOverlayGranted),
-                        
-                        const SizedBox(height: 14),
-                        if (!everythingGranted) ...[
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.black87),
-                            icon: const Icon(Icons.security, size: 18),
-                            label: const Text("1. Povolit Oprávnění aplikace"),
-                            onPressed: _requestStandardPermissions,
-                          ),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.black87),
-                            icon: const Icon(Icons.layers, size: 18),
-                            label: const Text("2. Povolit Vyskakovací okna (Overlay)"),
-                            onPressed: _openOverlaySettings,
-                          ),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF263238)), // Opraveno pozadí
-                            icon: const Icon(Icons.settings_applications, size: 18),
-                            label: const Text("3. Otevřít detaily (pro 'Ostatní oprávnění')"),
-                            onPressed: _openDeepAppSettings,
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              "* Na telefonech Xiaomi/Redmi klepněte na tlačítko 3, zvolte 'Ostatní oprávnění' a ručně povolte 'Zobrazit vyskakovací okna při běhu na pozadí'.",
-                              style: TextStyle(fontSize: 11, color: Colors.white70, fontStyle: FontStyle.italic), // Opraveno italic
-                            ),
-                          ),
-                        ]
-                      ],
-                    ),
-                  ),
-                ),
-                
                 Card(
                   color: Colors.grey.shade900,
                   margin: const EdgeInsets.all(10),
@@ -325,7 +245,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => NoLedOverlay(appIcon: app.icon, bColor: batteryColor),
+                                builder: (context) => NoLedOverlay(
+                                  appIcon: app.icon, 
+                                  bColor: batteryColor,
+                                  debugPackageName: package,
+                                ),
                               ),
                             );
                           }
@@ -338,25 +262,18 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
             ),
     );
   }
-
-  Widget _buildPermissionStatusRow(String label, bool isGranted) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.0),
-      child: Row(
-        children: [
-          Icon(isGranted ? Icons.check : Icons.close, color: isGranted ? Colors.green : Colors.red, size: 16),
-          const SizedBox(width: 6),
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 13, color: Colors.white70))), // Opraveno white90 -> white70
-        ],
-      ),
-    );
-  }
 }
 
 class NoLedOverlay extends StatefulWidget {
   final Uint8List? appIcon; 
   final Color bColor;
-  const NoLedOverlay({required this.appIcon, required this.bColor});
+  final String debugPackageName;
+  
+  const NoLedOverlay({
+    required this.appIcon, 
+    required this.bColor,
+    required this.debugPackageName,
+  });
 
   @override
   _NoLedOverlayState createState() => _NoLedOverlayState();
@@ -379,9 +296,12 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _checkBatteryStatus();
 
-    _moveTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       _moveIconRandomly();
-      _checkBatteryStatus(); 
+      _moveTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+        _moveIconRandomly();
+        _checkBatteryStatus(); 
+      });
     });
 
     _destructionTimer = Timer(const Duration(hours: 1), () {
@@ -405,8 +325,8 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
 
-    final double maxW = screenWidth > 100 ? screenWidth - 100 : 100;
-    final double maxH = screenHeight > 180 ? screenHeight - 180 : 180;
+    final double maxW = screenWidth > 100 ? screenWidth - 100 : 200;
+    final double maxH = screenHeight > 180 ? screenHeight - 180 : 400;
 
     setState(() {
       posX = _random.nextDouble() * maxW;
@@ -434,6 +354,23 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
         onTap: _exitOverlay, 
         child: Stack(
           children: [
+            Positioned(
+              top: 40,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white12,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  "DEBUG: Triggered by ${widget.debugPackageName}",
+                  style: const TextStyle(color: Colors.amber, fontSize: 12, fontFamily: 'monospace'),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
             Positioned(
               left: posX,
               top: posY,
