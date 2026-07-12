@@ -254,7 +254,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                             onPressed: _openOverlaySettings,
                           ),
                           ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade900),
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF263238)), // Opraveno pozadí
                             icon: const Icon(Icons.settings_applications, size: 18),
                             label: const Text("3. Otevřít detaily (pro 'Ostatní oprávnění')"),
                             onPressed: _openDeepAppSettings,
@@ -263,7 +263,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                             padding: EdgeInsets.only(top: 8.0),
                             child: Text(
                               "* Na telefonech Xiaomi/Redmi klepněte na tlačítko 3, zvolte 'Ostatní oprávnění' a ručně povolte 'Zobrazit vyskakovací okna při běhu na pozadí'.",
-                              style: TextStyle(fontSize: 11, color: Colors.white70, italic: true),
+                              style: TextStyle(fontSize: 11, color: Colors.white70, fontStyle: FontStyle.italic), // Opraveno italic
                             ),
                           ),
                         ]
@@ -346,7 +346,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
         children: [
           Icon(isGranted ? Icons.check : Icons.close, color: isGranted ? Colors.green : Colors.red, size: 16),
           const SizedBox(width: 6),
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 13, color: Colors.white90))),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13, color: Colors.white70))), // Opraveno white90 -> white70
         ],
       ),
     );
