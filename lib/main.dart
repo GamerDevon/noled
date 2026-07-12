@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:device_apps/device_apps.dart';
-import 'package:battery_plus/battery_plus.dart'; // Core power tracker
+import 'package:installed_apps/installed_apps.dart';
+import 'package:installed_apps/app_info.dart';
+import 'package:battery_plus/battery_plus.dart';
 
 void main() => runApp(NoLedApp());
 
@@ -28,9 +29,9 @@ class AppSettingsScreen extends StatefulWidget {
 }
 
 class _AppSettingsScreenState extends State<AppSettingsScreen> {
-  List<ApplicationWithIcon> installedApps = [];
+  List<AppInfo> installedApps = [];
   final Set<String> enabledApps = {}; 
-  Color batteryColor = Colors.green; // Default battery color
+  Color batteryColor = Colors.green; 
   bool isLoading = true;
 
   final List<Color> colorPresets = [
@@ -51,23 +52,21 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   Future<void> _loadAppsAndSettings() async {
     final prefs = await SharedPreferences.getInstance();
     
-    List<Application> apps = await DeviceApps.getInstalledApplications(
-      includeSystemApps: false, 
-      onlyAppsWithLaunchIntent: true, 
-      includeAppIcon: true, 
+    // Grabs active user-installed apps with icons loaded safely
+    List<AppInfo> apps = await InstalledApps.getInstalledApps(
+      excludeSystemApps: true,
+      withIcon: true,
     );
 
-    List<ApplicationWithIcon> appsWithIcons = apps.whereType<ApplicationWithIcon>().toList();
-    appsWithIcons.sort((a, b) => a.appName.toLowerCase().compareTo(b.appName.toLowerCase()));
+    apps.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-    // Load saved battery color choice
     final savedBatteryColorValue = prefs.getInt('battery_color_pref');
     
     setState(() {
       if (savedBatteryColorValue != null) {
         batteryColor = Color(savedBatteryColorValue);
       }
-      installedApps = appsWithIcons;
+      installedApps = apps;
       for (var app in installedApps) {
         final isEnabled = prefs.getBool(app.packageName) ?? false;
         if (isEnabled) {
@@ -107,7 +106,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               children: [
-                // BATTERY CONFIGURATION CARD IN CZECH
                 Card(
                   color: Colors.grey.shade900,
                   margin: const EdgeInsets.all(10),
@@ -139,7 +137,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                   ),
                 ),
                 const Divider(color: Colors.grey),
-                // INSTALLED APPS LIST
                 ...installedApps.map((app) {
                   final package = app.packageName;
                   final isEnabled = enabledApps.contains(package);
@@ -148,8 +145,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                     color: Colors.grey.shade900,
                     margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     child: ListTile(
-                      leading: Image.memory(app.icon, width: 40, height: 40), 
-                      title: Text(app.appName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      leading: app.icon != null 
+                          ? Image.memory(app.icon!, width: 40, height: 40)
+                          : const Icon(Icons.android, size: 40), 
+                      title: Text(app.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(package, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
                       trailing: Switch(
                         value: isEnabled,
@@ -175,7 +174,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   }
 }
 
-// ULTRA COMPACT AMOLED SYSTEM WAKE ENGINE WITH POWER SENSOR
 class NoLedOverlay extends StatefulWidget {
   final dynamic appIcon; 
   final Color bColor;
@@ -201,13 +199,11 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
     super.initState();
     _checkBatteryStatus();
 
-    // The 5-Second Burn-in Protection Loop
     _moveTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _moveIconRandomly();
-      _checkBatteryStatus(); // Refreshes battery digits mid-flight
+      _checkBatteryStatus(); 
     });
 
-    // The 1-Hour Automated Termination Countdown
     _destructionTimer = Timer(const Duration(hours: 1), () {
       _exitOverlay();
     });
@@ -229,7 +225,6 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
 
-    // Boundary math ensuring text and icon stay visible inside his screen corners
     final double maxW = screenWidth - 100;
     final double maxH = screenHeight - 180;
 
@@ -266,8 +261,9 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Image.memory(widget.appIcon, width: 55, height: 55),
-                    // Only triggers charging metric display if plugged in
+                    widget.appIcon != null 
+                        ? Image.memory(widget.appIcon, width: 55, height: 55)
+                        : const Icon(Icons.android, size: 55, color: Colors.cyan),
                     if (isCharging && batteryPercentage.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
