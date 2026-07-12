@@ -15,10 +15,10 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterL
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // FIXED: Changed to a named argument 'initializationSettings:' to match modern package requirements
+  // FIXED: Standard cross-version initialization configuration sequence
   const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
   const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings: initializationSettings);
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
     'com.noled.app/alerts', 
@@ -388,7 +388,7 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
                 child: Text(
                   "DEBUG: Triggered by ${widget.debugPackageName}",
                   style: const TextStyle(color: Colors.amber, fontSize: 12, fontFamily: 'monospace'),
-                  textAlign: 'center',
+                  textAlign: TextAlign.center, // FIXED: Changed plain 'center' string to valid material TextAlign property
                 ),
               ),
             ),
@@ -417,7 +417,7 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
                   ],
                 ),
               ),
-            ), // FIXED: Cleared the accidental bracket syntax nesting conflict here
+            ),
           ],
         ),
       ),
