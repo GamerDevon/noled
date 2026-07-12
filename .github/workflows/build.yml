@@ -203,6 +203,16 @@ jobs:
           }
           EOF
 
+      - name: Enable Android Core Library Desugaring
+        run: |
+          GRADLE_PATH="android/app/build.gradle"
+          
+          # Inject coreLibraryDesugaringEnabled inside compileOptions configuration block
+          sed -i '/compileOptions {/a \        coreLibraryDesugaringEnabled true' $GRADLE_PATH
+          
+          # Inject the desugar engine engine artifact straight into dependencies block
+          sed -i '/dependencies {/a \    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"' $GRADLE_PATH
+
       - name: Add System Permissions Dependencies
         run: |
           flutter pub add permission_handler
