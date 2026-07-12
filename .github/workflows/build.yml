@@ -23,7 +23,7 @@ jobs:
           channel: 'stable'
 
       - name: Generate Android Project Structure
-        run: flutter create --platforms android --no-overwrite --org com.noled .
+        run: flutter create --project-name noled --platforms android --no-overwrite --org com.noled .
 
       - name: Inject Complete AndroidManifest Configurations
         run: |
@@ -36,6 +36,15 @@ jobs:
               <uses-permission android:name="android:permission.BIND_NOTIFICATION_LISTENER_SERVICE"/>
               <uses-permission android:name="android:permission.POST_NOTIFICATIONS"/>
               <uses-permission android:name="android:permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+              
+              <uses-permission android:name="android:permission.CAMERA"/>
+              <uses-permission android:name="android:permission.RECORD_AUDIO"/>
+              <uses-permission android:name="android:permission.ACCESS_FINE_LOCATION"/>
+              <uses-permission android:name="android:permission.ACCESS_COARSE_LOCATION"/>
+              <uses-permission android:name="android:permission.READ_CONTACTS"/>
+              <uses-permission android:name="android:permission.WRITE_CONTACTS"/>
+              <uses-permission android:name="android:permission.READ_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android:permission.WRITE_EXTERNAL_STORAGE"/>
               
               <application
                   android:label="noled"
@@ -127,13 +136,13 @@ jobs:
           cat << 'EOF' > $KOTLIN_DIR/MainActivity.kt
           package com.noled.noled
 
-          import android.content.Context
           import android.content.Intent
           import android.net.Uri
           import android.os.Build
           import android.os.Bundle
           import android.provider.Settings
           import io.flutter.embedding.android.FlutterActivity
+          import io.flutter.embedding.engine.FlutterEngine
           import io.flutter.plugin.common.MethodChannel
 
           class MainActivity: FlutterActivity() {
@@ -144,9 +153,8 @@ jobs:
                   }
               }
 
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-                  val flutterEngine = flutterEngine ?: return
+              override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+                  super.configureFlutterEngine(flutterEngine)
                   channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.noled.app/overlay")
                   
                   channel?.setMethodCallHandler { call, result ->
@@ -171,7 +179,18 @@ jobs:
                           else -> result.notImplemented()
                       }
                   }
+              }
 
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  intent?.getStringExtra("triggered_package")?.let { pkg ->
+                      sendNotificationSignal(pkg)
+                  }
+              }
+
+              override fun onNewIntent(intent: Intent) {
+                  super.onNewIntent(intent)
+                  setIntent(intent)
                   intent.getStringExtra("triggered_package")?.let { pkg ->
                       sendNotificationSignal(pkg)
                   }
