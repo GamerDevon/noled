@@ -15,7 +15,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterL
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // FIXED: Standard cross-version initialization configuration sequence
+  // FIXED: Wrapped securely inside the proper modern instantiation structure
   const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
   const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
@@ -388,7 +388,7 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
                 child: Text(
                   "DEBUG: Triggered by ${widget.debugPackageName}",
                   style: const TextStyle(color: Colors.amber, fontSize: 12, fontFamily: 'monospace'),
-                  textAlign: TextAlign.center, // FIXED: Changed plain 'center' string to valid material TextAlign property
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
