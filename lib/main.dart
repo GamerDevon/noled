@@ -13,10 +13,52 @@ void main() {
   runApp(NoLedApp());
 }
 
-class NoLedApp extends StatelessWidget {
+class NoLedApp extends StatefulWidget {
+  @override
+  State<NoLedApp> createState() => _NoLedAppState();
+}
+
+class _NoLedAppState extends State<NoLedApp> {
+  static const platform = MethodChannel('com.noled.app/overlay');
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Native service triggers this when a matching notification arrives
+    platform.setMethodCallHandler((call) async {
+      if (call.method == "showNotificationOverlay") {
+        final String? packageName = call.arguments as String?;
+        _triggerOverlay(packageName);
+      }
+    });
+  }
+
+  Future<void> _triggerOverlay(String? packageName) async {
+    Uint8List? iconBytes;
+    if (packageName != null) {
+      try {
+        iconBytes = await InstalledApps.getAppIcon(packageName);
+      } catch (_) {}
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final savedBatteryColorValue = prefs.getInt('battery_color_pref') ?? Colors.green.value;
+
+    navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (context) => NoLedOverlay(
+          appIcon: iconBytes,
+          bColor: Color(savedBatteryColorValue),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
@@ -160,6 +202,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                         onChanged: (bool value) {
                           _toggleApp(package, value);
                           if (value) {
+                            // Allows testing the overlay layout immediately when switched on
                             Navigator.push(
                               context,
                               MaterialPageRoute(
