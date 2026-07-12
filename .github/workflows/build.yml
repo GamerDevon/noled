@@ -22,18 +22,14 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Generate Project Structure
-        run: flutter create --platforms android .
+      - name: Generate Android Project Structure
+        run: flutter create --platforms android --no-overwrite .
 
-      - name: Inject Lock Screen Permissions
+      - name: Inject Overlay and Lock Screen Permissions
         run: |
-          sed -i 's/<activity/<activity android:showWhenLocked="true" android:turnScreenOn="true" android:keepScreenOn="true"/g' android/app/src/main/AndroidManifest.xml
-
-      - name: Inject Packages into Overwritten Pubspec
-        run: |
-          flutter pub add shared_preferences
-          flutter pub add installed_apps
-          flutter pub add battery_plus
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<manifest/a \    <uses-permission android:name="android:permission.SYSTEM_ALERT_WINDOW"\/>' $MANIFEST_PATH
+          sed -i 's/<activity/<activity android:showWhenLocked="true" android:turnScreenOn="true" android:keepScreenOn="true"/g' $MANIFEST_PATH
 
       - name: Install Dependencies
         run: flutter pub get
