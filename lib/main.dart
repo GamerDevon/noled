@@ -64,6 +64,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   final Set<String> enabledApps = {}; 
   Color batteryColor = Colors.green; 
   bool isLoading = true;
+  bool isOverlayPermissionGranted = true;
+
+  // Channel to invoke native window overlay checks
+  static const MethodChannel _permissionChannel = MethodChannel('com.noled.app/overlay');
 
   final List<Color> colorPresets = [
     Colors.red, Colors.green, Colors.blue, Colors.yellow, Colors.purple, Colors.cyan,
@@ -73,6 +77,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   void initState() {
     super.initState();
     _loadAppsAndSettings();
+    _checkOverlayPermission();
     widget.triggerNotifier.addListener(_handleBackgroundTrigger);
   }
 
@@ -82,13 +87,31 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     super.dispose();
   }
 
+  // Requests status checks from Android to see if it can draw popups
+  Future<void> _checkOverlayPermission() async {
+    try {
+      final bool systemAlertCheck = await _permissionChannel.invokeMethod('checkOverlayPermission') ?? false;
+      setState(() {
+        isOverlayPermissionGranted = systemAlertCheck;
+      });
+    } catch (_) {}
+  }
+
+  // Launches the hidden native settings screen directly
+  Future<void> _openOverlaySettings() async {
+    try {
+      await _permissionChannel.invokeMethod('requestOverlayPermission');
+      // Re-evaluate state when user comes back
+      Future.delayed(const Duration(seconds: 2), () => _checkOverlayPermission());
+    } catch (_) {}
+  }
+
   void _handleBackgroundTrigger() async {
     final package = widget.triggerNotifier.value;
     if (package == null) return;
-    widget.triggerNotifier.value = null; // Clear trigger
+    widget.triggerNotifier.value = null;
 
     Uint8List? matchedIcon;
-    // Safely look up the icon from the already fetched in-memory list
     for (var app in installedApps) {
       if (app.packageName == package) {
         matchedIcon = app.icon;
@@ -162,6 +185,30 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               children: [
+                // Warning notification banner if Xiaomi blocks background popups
+                if (!isOverlayPermissionGranted)
+                  Card(
+                    color: Colors.amber.shade900.withOpacity(0.8),
+                    margin: const EdgeInsets.all(10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        children: [
+                          const Text(
+                            "Oprávnění chybí: Povolte 'Zobrazit vyskakovací okna / kreslení přes aplikace', aby se obrazovka zobrazovala na pozadí.",
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 10),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+                            onPressed: _openOverlaySettings,
+                            child: const Text("Otevřít nastavení oprávnění", style: TextStyle(color: Colors.white)),
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
                 Card(
                   color: Colors.grey.shade900,
                   margin: const EdgeInsets.all(10),
