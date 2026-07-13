@@ -211,12 +211,6 @@ jobs:
           }
           EOF
 
-      - name: Enable Android Core Library Desugaring
-        run: |
-          GRADLE_PATH="android/app/build.gradle"
-          sed -i '/compileOptions {/a \        coreLibraryDesugaringEnabled true' $GRADLE_PATH
-          sed -i '/dependencies {/a \    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"' $GRADLE_PATH
-
       - name: Add System Permissions Dependencies
         run: |
           flutter pub add permission_handler
@@ -225,6 +219,7 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
+      # FIX: Instead of manually editing files with 'sed', we let Flutter automatically set up compilation parameters safely.
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
 
