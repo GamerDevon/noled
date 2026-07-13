@@ -41,7 +41,7 @@ jobs:
               
               <application
                   android:label="NoLED Remake"
-                  android:name="io.flutter.app.FlutterApplication"
+                  android:name="${applicationName}"
                   android:icon="@mipmap/ic_launcher">
                   
                   <meta-data
