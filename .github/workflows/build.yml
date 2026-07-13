@@ -222,7 +222,6 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      # FIX: Clean out the automatically generated .kts script to prevent mixed Gradle execution errors
       - name: Inject Customized build.gradle Configuration
         run: |
           rm -f android/app/build.gradle.kts
@@ -265,7 +264,7 @@ jobs:
           }
 
           dependencies {
-              coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
+              coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.4"
           }
           EOF
 
