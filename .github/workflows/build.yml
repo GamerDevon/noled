@@ -222,16 +222,50 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      # FIX: Programmatically inject Java 8 desugaring requirements safely into build.gradle before compiling
-      - name: Enable Core Library Desugaring Configuration
+      # FIX: We overwrite the entire app level build.gradle with proper Java 8 desugaring presets manually injected.
+      - name: Inject Customized build.gradle Configuration
         run: |
-          GRADLE_PATH="android/app/build.gradle"
-          
-          # Inject coreLibraryDesugaringEnabled true inside compileOptions
-          sed -i '/compileOptions {/a \        coreLibraryDesugaringEnabled true' $GRADLE_PATH
-          
-          # Inject the desugar library dependency into dependencies block
-          sed -i '/dependencies {/a \    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"' $GRADLE_PATH
+          cat << 'EOF' > android/app/build.gradle
+          plugins {
+              id "com.android.application"
+              id "kotlin-android"
+              id "dev.flutter.flutter-gradle-plugin"
+          }
+
+          android {
+              namespace "com.noled.noled"
+              compileSdk flutter.compileSdkVersion
+              ndkVersion flutter.ndkVersion
+
+              compileOptions {
+                  coreLibraryDesugaringEnabled true
+                  sourceCompatibility JavaVersion.VERSION_1_8
+                  targetCompatibility JavaVersion.VERSION_1_8
+              }
+
+              kotlinOptions {
+                  jvmTarget = '1.8'
+              }
+
+              defaultConfig {
+                  applicationId "com.noled.noled"
+                  minSdkVersion 21
+                  targetSdkVersion flutter.targetSdkVersion
+                  versionCode flutter.versionCode
+                  versionName flutter.versionName
+              }
+
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.debug
+                  }
+              }
+          }
+
+          dependencies {
+              coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
+          }
+          EOF
 
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
