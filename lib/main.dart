@@ -16,10 +16,14 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
   
-  // FIX: Passed as a named parameter to match the plugin's API layout
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings: initializationSettings);
+  // FIX: Explicitly instantiated using matching parameter fields
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+  
+  // FIX: Reverted to positional syntax structure matching the resolved plugin layer
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
     'com.noled.noled/alerts', 
@@ -64,7 +68,6 @@ class _NoLedAppState extends State<NoLedApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: navigatorKey,
-      // FIX: Corrected typo to use the standard framework parameter name
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
