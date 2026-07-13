@@ -194,3 +194,106 @@ jobs:
                                   val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                                       data = Uri.fromParts("package", packageName, null)
                                   }
+                                  startActivity(intent)
+                              }
+                              result.success(null)
+                          }
+                          else -> result.notImplemented()
+                      }
+                  }
+
+                  pendingPackage?.let {
+                      sendNotificationSignal(it)
+                      pendingPackage = null
+                  }
+              }
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                      setShowWhenLocked(true)
+                      setTurnScreenOn(true)
+                  } else {
+                      window.addFlags(
+                          WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                          WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                          WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                      )
+                  }
+
+                  val pkg = intent?.getStringExtra("triggered_package")
+                  if (channel != null && pkg != null) {
+                      sendNotificationSignal(pkg)
+                  } else {
+                      pendingPackage = pkg
+                  }
+              }
+
+              override fun onNewIntent(intent: Intent) {
+                  super.onNewIntent(intent)
+                  setIntent(intent)
+                  intent.getStringExtra("triggered_package")?.let { pkg ->
+                      sendNotificationSignal(pkg)
+                  }
+              }
+          }
+          EOF
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Inject Customized build.gradle Configuration
+        run: |
+          rm -f android/app/build.gradle.kts
+          
+          cat << 'EOF' > android/app/build.gradle
+          plugins {
+              id "com.android.application"
+              id "kotlin-android"
+              id "dev.flutter.flutter-gradle-plugin"
+          }
+
+          android {
+              namespace "com.noled.noled"
+              compileSdk flutter.compileSdkVersion
+              ndkVersion flutter.ndkVersion
+
+              compileOptions {
+                  coreLibraryDesugaringEnabled true
+                  sourceCompatibility JavaVersion.VERSION_1_8
+                  targetCompatibility JavaVersion.VERSION_1_8
+              }
+
+              kotlinOptions {
+                  jvmTarget = '1.8'
+              }
+
+              defaultConfig {
+                  applicationId "com.noled.noled"
+                  minSdkVersion 21
+                  targetSdkVersion flutter.targetSdkVersion
+                  versionCode flutter.versionCode
+                  versionName flutter.versionName
+              }
+
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.debug
+                  }
+              }
+          }
+
+          dependencies {
+              coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.4"
+          }
+          EOF
+
+      - name: Build APK
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noled-app
+          path: build/app/outputs/flutter-apk/app-release.apk
