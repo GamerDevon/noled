@@ -12,6 +12,13 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
+// Global log collector stream for the UI debug card
+final StreamController<String> debugLogStream = StreamController<String>.broadcast();
+void logDebugMessage(String message) {
+  final timestamp = DateTime.now().toString().substring(11, 19);
+  debugLogStream.add("[$timestamp] $message");
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -33,6 +40,7 @@ void main() async {
       .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 
+  logDebugMessage("Engine initialized successfully.");
   runApp(NoLedApp());
 }
 
@@ -50,8 +58,10 @@ class _NoLedAppState extends State<NoLedApp> {
   void initState() {
     super.initState();
     platform.setMethodCallHandler((call) async {
+      logDebugMessage("Received Native Method Call: ${call.method}");
       if (call.method == "showNotificationOverlay") {
         final String? packageName = call.arguments as String?;
+        logDebugMessage("Trigger package payload parsed: $packageName");
         if (packageName != null) {
           backgroundTriggerNotifier.value = packageName;
         }
@@ -87,9 +97,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   final Set<String> enabledApps = {}; 
   Color batteryColor = Colors.green; 
   bool isLoading = true;
+  
+  // Persistent log strings container
+  List<String> liveLogsList = ["Logs initialized... Ready for events."];
 
   static const MethodChannel _permissionChannel = MethodChannel('com.noled.noled/overlay');
-
   final List<Color> colorPresets = [
     Colors.red, Colors.green, Colors.blue, Colors.yellow, Colors.purple, Colors.cyan,
   ];
@@ -100,6 +112,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     _loadAppsAndSettings();
     _requestAllSystemPermissions();
     widget.triggerNotifier.addListener(_handleBackgroundTrigger);
+    
+    // Listen to global logging actions and update UI state
+    debugLogStream.stream.listen((logLine) {
+      if (mounted) {
+        setState(() {
+          liveLogsList.add(logLine);
+        });
+      }
+    });
   }
 
   @override
@@ -109,6 +130,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   }
 
   Future<void> _requestAllSystemPermissions() async {
+    logDebugMessage("Requesting native runtime permissions...");
     await [
       Permission.notification,
       Permission.sms,
@@ -116,15 +138,20 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     ].request();
 
     try {
+      final bool? isOverlayGranted = await _permissionChannel.invokeMethod('checkOverlayPermission');
+      logDebugMessage("System Overlay state check: $isOverlayGranted");
       await _permissionChannel.invokeMethod('requestOverlayPermission');
-    } catch (_) {}
+    } catch (e) {
+      logDebugMessage("Error configuring system windows: $e");
+    }
   }
 
   Future<void> _openXiaomiPermissions() async {
+    logDebugMessage("Attempting redirect to POCO application options panel...");
     try {
       await _permissionChannel.invokeMethod('openOtherPermissions');
     } catch (e) {
-      debugPrint("Could not launch POCO settings panel: $e");
+      logDebugMessage("Failed opening direct POCO settings editor: $e");
     }
   }
 
@@ -133,6 +160,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     if (package == null) return;
     widget.triggerNotifier.value = null;
 
+    logDebugMessage("Displaying screen overlay UI for package: $package");
     Uint8List? matchedIcon;
     for (var app in installedApps) {
       if (app.packageName == package) {
@@ -160,6 +188,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
 
   Future<void> _loadAppsAndSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    logDebugMessage("Loading installed applications list...");
     
     List<AppInfo> apps = await InstalledApps.getInstalledApps(true, true);
     apps.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -178,10 +207,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
       }
       isLoading = false;
     });
+    logDebugMessage("Found ${apps.length} valid package channels.");
   }
 
   Future<void> _toggleApp(String package, bool value) async {
     final prefs = await SharedPreferences.getInstance();
+    logDebugMessage("Toggling configuration for $package -> $value");
     setState(() {
       if (value) {
         enabledApps.add(package);
@@ -201,8 +232,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     await prefs.setInt('battery_color_pref', color.value);
   }
 
-  // FOREGROUND TESTING RULE: Simulates an arriving notification right inside the active UI
   void _triggerLocalInAppTest(String selectedPackageName) {
+    logDebugMessage("Manual testing button clicked for: $selectedPackageName");
     widget.triggerNotifier.value = selectedPackageName;
   }
 
@@ -228,6 +259,58 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               children: [
+                // PERSISTENT DEBUG LOG CONSOLE (Stays open until Red X clears it)
+                if (liveLogsList.isNotEmpty)
+                  Card(
+                    color: Colors.grey.shade950,
+                    margin: const EdgeInsets.all(10),
+                    shape: RoundedRectangleBorder(
+                      side: const BorderSide(color: Colors.amber, width: 1.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.bug_report, color: Colors.amber, size: 20),
+                                  SizedBox(width: 6),
+                                  Text("Live Debug Console logs", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber)),
+                                ],
+                              ),
+                              IconButton(
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                                icon: const Icon(Icons.cancel, color: Colors.red, size: 26),
+                                onPressed: () {
+                                  setState(() {
+                                    liveLogsList.clear();
+                                  });
+                                },
+                              )
+                            ],
+                          ),
+                          const Divider(color: Colors.amber),
+                          Container(
+                            constraints: const BoxConstraints(maxHeight: 180),
+                            child: SingleChildScrollView(
+                              reverse: true, // Auto-scrolls down to newest logs
+                              child: Text(
+                                liveLogsList.join("\n"),
+                                style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: Colors.greenAccent),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                 Card(
                   color: Colors.grey.shade900,
                   margin: const EdgeInsets.all(10),
@@ -360,6 +443,7 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
   }
 
   void _exitOverlay() {
+    logDebugMessage("Overlay closed by screen tap interaction.");
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     if (mounted) Navigator.pop(context);
   }
