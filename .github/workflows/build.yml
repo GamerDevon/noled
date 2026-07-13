@@ -41,7 +41,7 @@ jobs:
               
               <application
                   android:label="NoLED Remake"
-                  android:name="${applicationName}"
+                  android:name="io.flutter.app.FlutterApplication"
                   android:icon="@mipmap/ic_launcher">
                   
                   <meta-data
@@ -119,10 +119,10 @@ jobs:
                   if (isEnabled) {
                       val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
                       val wakeLock = pm.newWakeLock(
-                          PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                          PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
                           "NoLED::NotificationWakeLock"
                       )
-                      wakeLock.acquire(5000)
+                      wakeLock.acquire(10000) // 10s wakelock to give the engine window time to draw
 
                       val launchIntent = packageManager.getLaunchIntentForPackage(this.packageName)
                       launchIntent?.apply {
@@ -145,6 +145,7 @@ jobs:
           import android.os.Build
           import android.os.Bundle
           import android.provider.Settings
+          import android.view.WindowManager
           import io.flutter.embedding.android.FlutterActivity
           import io.flutter.embedding.engine.FlutterEngine
           import io.flutter.plugin.common.MethodChannel
@@ -209,6 +210,19 @@ jobs:
 
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
+                  
+                  // CRITICAL POCO FIX: Force the activity window onto the locked screen architecture
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                      setShowWhenLocked(true)
+                      setTurnScreenOn(true)
+                  } else {
+                      window.addFlags(
+                          WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                          WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                          WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                      )
+                  }
+
                   val pkg = intent?.getStringExtra("triggered_package")
                   if (channel != null && pkg != null) {
                       sendNotificationSignal(pkg)
@@ -226,14 +240,6 @@ jobs:
               }
           }
           EOF
-
-      - name: Add System Permissions Dependencies
-        run: |
-          flutter pub add permission_handler
-          flutter pub add flutter_local_notifications
-          flutter pub add shared_preferences
-          flutter pub add installed_apps
-          flutter pub add battery_plus
 
       - name: Install Dependencies
         run: flutter pub get
