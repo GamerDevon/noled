@@ -215,11 +215,24 @@ jobs:
         run: |
           flutter pub add permission_handler
           flutter pub add flutter_local_notifications
+          flutter pub add shared_preferences
+          flutter pub add installed_apps
+          flutter pub add battery_plus
 
       - name: Install Dependencies
         run: flutter pub get
 
-      # FIX: Instead of manually editing files with 'sed', we let Flutter automatically set up compilation parameters safely.
+      # FIX: Programmatically inject Java 8 desugaring requirements safely into build.gradle before compiling
+      - name: Enable Core Library Desugaring Configuration
+        run: |
+          GRADLE_PATH="android/app/build.gradle"
+          
+          # Inject coreLibraryDesugaringEnabled true inside compileOptions
+          sed -i '/compileOptions {/a \        coreLibraryDesugaringEnabled true' $GRADLE_PATH
+          
+          # Inject the desugar library dependency into dependencies block
+          sed -i '/dependencies {/a \    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"' $GRADLE_PATH
+
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
 
