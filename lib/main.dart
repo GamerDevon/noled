@@ -15,14 +15,10 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterL
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // FIX: Formatted initialization syntax directly using clean structural creation
   const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
   
-  // FIX: Explicitly instantiated using matching parameter fields
-  const InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-  );
-  
-  // FIX: Reverted to positional syntax structure matching the resolved plugin layer
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
