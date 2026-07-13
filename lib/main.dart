@@ -109,7 +109,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   }
 
   Future<void> _requestAllSystemPermissions() async {
-    // Requests standard Android prompts automatically
     Map<Permission, PermissionStatus> statuses = await [
       Permission.notification,
       Permission.sms,
@@ -161,7 +160,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
 
   Future<void> _loadAppsAndSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    List<AppInfo> apps = await InstalledApps.getInstalledApps(true, true);
+    
+    // FIX: Using named parameters for installed_apps v2.x compatibility
+    List<AppInfo> apps = await InstalledApps.getInstalledApps(
+      excludeSystemApps: true,
+      withIcon: true,
+    );
+    
     apps.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     final savedBatteryColorValue = prefs.getInt('battery_color_pref');
     
