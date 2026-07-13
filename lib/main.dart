@@ -18,8 +18,7 @@ void main() async {
   const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
   const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
   
-  // FIXED: Explicitly targeting 'settings:' as the named argument required by the modern API
-  await flutterLocalNotificationsPlugin.initialize(settings: initializationSettings);
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
     'com.noled.noled/alerts', 
@@ -110,7 +109,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   }
 
   Future<void> _requestAllSystemPermissions() async {
-    Map<Permission, PermissionStatus> statuses = await [
+    await [
       Permission.notification,
       Permission.sms,
       Permission.ignoreBatteryOptimizations,
@@ -268,7 +267,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                     margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     child: ListTile(
                       leading: app.icon != null 
-                          ? Image.memory(app.icon!, width: 40, height: 40)
+                          ? Image.memory(app.icon!, width: 40, height: 40, errorBuilder: (c, e, s) => const Icon(Icons.android, size: 40))
                           : const Icon(Icons.android, size: 40), 
                       title: Text(app.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(package, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
@@ -404,7 +403,12 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     widget.appIcon != null 
-                        ? Image.memory(widget.appIcon!, width: 55, height: 55)
+                        ? Image.memory(
+                            widget.appIcon!, 
+                            width: 55, 
+                            height: 55,
+                            errorBuilder: (c, e, s) => const Icon(Icons.android, size: 55, color: Colors.cyan),
+                          )
                         : const Icon(Icons.android, size: 55, color: Colors.cyan),
                     if (isCharging && batteryPercentage.isNotEmpty) ...[
                       const SizedBox(height: 8),
