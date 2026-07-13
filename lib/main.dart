@@ -18,10 +18,10 @@ void main() async {
   const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
   const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
   
-  await flutterLocalNotificationsPlugin.initialize(settings: initializationSettings);
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'com.noled.app/alerts', 
+    'com.noled.noled/alerts', 
     'NoLED Core Alerts',
     description: 'Bypasses system restrictions to initialize overlay parameters.',
     importance: Importance.max,
@@ -42,7 +42,7 @@ class NoLedApp extends StatefulWidget {
 }
 
 class _NoLedAppState extends State<NoLedApp> {
-  static const platform = MethodChannel('com.noled.app/overlay');
+  static const platform = MethodChannel('com.noled.noled/overlay');
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   final ValueNotifier<String?> backgroundTriggerNotifier = ValueNotifier<String?>(null);
 
@@ -63,7 +63,7 @@ class _NoLedAppState extends State<NoLedApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: navigatorKey,
-      debugShowCheckedModeBanner: false,
+      debugCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: Colors.black,
@@ -88,7 +88,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   Color batteryColor = Colors.green; 
   bool isLoading = true;
 
-  static const MethodChannel _permissionChannel = MethodChannel('com.noled.app/overlay');
+  static const MethodChannel _permissionChannel = MethodChannel('com.noled.noled/overlay');
 
   final List<Color> colorPresets = [
     Colors.red, Colors.green, Colors.blue, Colors.yellow, Colors.purple, Colors.cyan,
@@ -161,7 +161,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   Future<void> _loadAppsAndSettings() async {
     final prefs = await SharedPreferences.getInstance();
     
-    // FIX: Using named parameters for installed_apps v2.x compatibility
     List<AppInfo> apps = await InstalledApps.getInstalledApps(
       excludeSystemApps: true,
       withIcon: true,
