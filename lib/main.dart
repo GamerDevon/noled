@@ -161,11 +161,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   Future<void> _loadAppsAndSettings() async {
     final prefs = await SharedPreferences.getInstance();
     
-    List<AppInfo> apps = await InstalledApps.getInstalledApps(
-      excludeSystemApps: true,
-      withIcon: true,
-    );
-    
+    List<AppInfo> apps = await InstalledApps.getInstalledApps(true, true);
     apps.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     final savedBatteryColorValue = prefs.getInt('battery_color_pref');
     
@@ -203,6 +199,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
       batteryColor = color;
     });
     await prefs.setInt('battery_color_pref', color.value);
+  }
+
+  // FOREGROUND TESTING RULE: Simulates an arriving notification right inside the active UI
+  void _triggerLocalInAppTest(String selectedPackageName) {
+    widget.triggerNotifier.value = selectedPackageName;
   }
 
   @override
@@ -266,11 +267,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                     color: Colors.grey.shade900,
                     margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     child: ListTile(
+                      onTap: () => _triggerLocalInAppTest(package),
                       leading: app.icon != null 
                           ? Image.memory(app.icon!, width: 40, height: 40, errorBuilder: (c, e, s) => const Icon(Icons.android, size: 40))
                           : const Icon(Icons.android, size: 40), 
                       title: Text(app.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(package, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                      subtitle: Text("Klepnutím spustíte testovací overlay\n$package", style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
                       trailing: Switch(
                         value: isEnabled,
                         activeColor: Colors.cyan,
@@ -388,7 +390,7 @@ class _NoLedOverlayState extends State<NoLedOverlay> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  "DEBUG: Triggered by ${widget.debugPackageName}",
+                  "DEBUG: Triggered by ${widget.debugPackageName}\n(Tap anywhere to close overlay)",
                   style: const TextStyle(color: Colors.amber, fontSize: 12, fontFamily: 'monospace'),
                   textAlign: TextAlign.center,
                 ),
