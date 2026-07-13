@@ -222,9 +222,11 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      # FIX: We overwrite the entire app level build.gradle with proper Java 8 desugaring presets manually injected.
+      # FIX: Clean out the automatically generated .kts script to prevent mixed Gradle execution errors
       - name: Inject Customized build.gradle Configuration
         run: |
+          rm -f android/app/build.gradle.kts
+          
           cat << 'EOF' > android/app/build.gradle
           plugins {
               id "com.android.application"
