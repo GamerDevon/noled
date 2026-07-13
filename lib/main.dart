@@ -18,7 +18,6 @@ void main() async {
   const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
   const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
   
-  // FIXED: Explicitly mapping the configuration to the required 'settings' named argument
   await flutterLocalNotificationsPlugin.initialize(settings: initializationSettings);
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -110,19 +109,24 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   }
 
   Future<void> _requestAllSystemPermissions() async {
+    // Requests standard Android prompts automatically
     Map<Permission, PermissionStatus> statuses = await [
       Permission.notification,
-      Permission.camera,
-      Permission.microphone,
-      Permission.location,
-      Permission.contacts,
-      Permission.storage,
+      Permission.sms,
       Permission.ignoreBatteryOptimizations,
     ].request();
 
     try {
       await _permissionChannel.invokeMethod('requestOverlayPermission');
     } catch (_) {}
+  }
+
+  Future<void> _openXiaomiPermissions() async {
+    try {
+      await _permissionChannel.invokeMethod('openOtherPermissions');
+    } catch (e) {
+      debugPrint("Could not launch POCO settings panel: $e");
+    }
   }
 
   void _handleBackgroundTrigger() async {
@@ -201,12 +205,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("NoLED"),
+        title: const Text("NoLED Settings"),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_suggest, color: Colors.cyan),
+            onPressed: _openXiaomiPermissions,
+            tooltip: "Open POCO Ostatní Oprávnění",
+          ),
           IconButton(
             icon: const Icon(Icons.security),
             onPressed: _requestAllSystemPermissions,
-            tooltip: "Request Missing Permissions",
+            tooltip: "Request Standard Permissions",
           )
         ],
       ),
@@ -263,18 +272,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                         activeColor: Colors.cyan,
                         onChanged: (bool value) {
                           _toggleApp(package, value);
-                          if (value) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => NoLedOverlay(
-                                  appIcon: app.icon, 
-                                  bColor: batteryColor,
-                                  debugPackageName: package,
-                                ),
-                              ),
-                            );
-                          }
                         },
                       ),
                     ),
