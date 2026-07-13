@@ -12,6 +12,8 @@ dependencies:
   shared_preferences: ^2.2.0
   installed_apps: ^1.2.1
   battery_plus: ^6.0.0
+  permission_handler: ^11.3.1
+  flutter_local_notifications: ^17.1.2
 
 flutter:
   uses-material-design: true
