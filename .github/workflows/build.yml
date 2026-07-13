@@ -35,19 +35,12 @@ jobs:
               <uses-permission android:name="android:permission.SYSTEM_ALERT_WINDOW"/>
               <uses-permission android:name="android:permission.BIND_NOTIFICATION_LISTENER_SERVICE"/>
               <uses-permission android:name="android:permission.POST_NOTIFICATIONS"/>
+              <uses-permission android:name="android:permission.RECEIVE_SMS"/>
+              <uses-permission android:name="android:permission.READ_SMS"/>
               <uses-permission android:name="android:permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
               
-              <uses-permission android:name="android:permission.CAMERA"/>
-              <uses-permission android:name="android:permission.RECORD_AUDIO"/>
-              <uses-permission android:name="android:permission.ACCESS_FINE_LOCATION"/>
-              <uses-permission android:name="android:permission.ACCESS_COARSE_LOCATION"/>
-              <uses-permission android:name="android:permission.READ_CONTACTS"/>
-              <uses-permission android:name="android:permission.WRITE_CONTACTS"/>
-              <uses-permission android:name="android:permission.READ_EXTERNAL_STORAGE"/>
-              <uses-permission android:name="android:permission.WRITE_EXTERNAL_STORAGE"/>
-              
               <application
-                  android:label="noled"
+                  android:label="NoLED Remake"
                   android:name="${applicationName}"
                   android:icon="@mipmap/ic_launcher">
                   
@@ -181,6 +174,21 @@ jobs:
                               }
                               result.success(null)
                           }
+                          "openOtherPermissions" -> {
+                              try {
+                                  val intent = Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+                                      setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity")
+                                      putExtra("extra_pkgname", packageName)
+                                  }
+                                  startActivity(intent)
+                              } catch (e: Exception) {
+                                  val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                      data = Uri.fromParts("package", packageName, null)
+                                  }
+                                  startActivity(intent)
+                              }
+                              result.success(null)
+                          }
                           else -> result.notImplemented()
                       }
                   }
@@ -206,11 +214,7 @@ jobs:
       - name: Enable Android Core Library Desugaring
         run: |
           GRADLE_PATH="android/app/build.gradle"
-          
-          # Inject coreLibraryDesugaringEnabled inside compileOptions configuration block
           sed -i '/compileOptions {/a \        coreLibraryDesugaringEnabled true' $GRADLE_PATH
-          
-          # Inject the desugar engine engine artifact straight into dependencies block
           sed -i '/dependencies {/a \    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"' $GRADLE_PATH
 
       - name: Add System Permissions Dependencies
