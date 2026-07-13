@@ -46,7 +46,7 @@ jobs:
                   
                   <meta-data
                       android:name="com.google.firebase.messaging.default_notification_channel_id"
-                      android:value="com.noled.app/alerts" />
+                      android:value="com.noled.noled/alerts" />
 
                   <activity
                       android:name=".MainActivity"
@@ -73,6 +73,7 @@ jobs:
                       android:name=".NotificationReceiver" 
                       android:label="NoLED Listener" 
                       android:permission="android:permission.BIND_NOTIFICATION_LISTENER_SERVICE" 
+                      android:directBootAware="true"
                       android:exported="true">
                       <intent-filter>
                           <action android:name="android.service.notification.NotificationListenerService"/>
@@ -101,6 +102,11 @@ jobs:
           import android.service.notification.StatusBarNotification
 
           class NotificationReceiver : NotificationListenerService() {
+              
+              override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+                  return START_STICKY
+              }
+
               override fun onNotificationPosted(sbn: StatusBarNotification?) {
                   super.onNotificationPosted(sbn)
                   val packageName = sbn?.packageName ?: return
@@ -116,11 +122,11 @@ jobs:
                           PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
                           "NoLED::NotificationWakeLock"
                       )
-                      wakeLock.acquire(3000)
+                      wakeLock.acquire(5000)
 
                       val launchIntent = packageManager.getLaunchIntentForPackage(this.packageName)
                       launchIntent?.apply {
-                          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                           putExtra("triggered_package", packageName)
                           startActivity(this)
                       }
@@ -144,6 +150,8 @@ jobs:
           import io.flutter.plugin.common.MethodChannel
 
           class MainActivity: FlutterActivity() {
+              private var pendingPackage: String? = null
+
               companion object {
                   var channel: MethodChannel? = null
                   fun sendNotificationSignal(packageName: String) {
@@ -153,7 +161,7 @@ jobs:
 
               override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
                   super.configureFlutterEngine(flutterEngine)
-                  channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.noled.app/overlay")
+                  channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.noled.noled/overlay")
                   
                   channel?.setMethodCallHandler { call, result ->
                       when (call.method) {
@@ -192,12 +200,20 @@ jobs:
                           else -> result.notImplemented()
                       }
                   }
+
+                  pendingPackage?.let {
+                      sendNotificationSignal(it)
+                      pendingPackage = null
+                  }
               }
 
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
-                  intent?.getStringExtra("triggered_package")?.let { pkg ->
+                  val pkg = intent?.getStringExtra("triggered_package")
+                  if (channel != null && pkg != null) {
                       sendNotificationSignal(pkg)
+                  } else {
+                      pendingPackage = pkg
                   }
               }
 
